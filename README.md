@@ -24,13 +24,12 @@ oscc user@mydb mySecretPass /path/to/file $1
 Relevant snippet from my ~/.vimrc:
 ```
 aug orcl
-    au BufRead,BufNewFile *.pkb,*.pks setl ft=plsql
-    au BufRead,BufNewFile *.pkb,*.pks setl foldmethod=syntax
-    au BufRead,BufNewFile *.pkb,*.pks setl errorformat=%f\ %l/%c:%m
-    au BufRead,BufNewFile *.pkb,*.pks setl makeprg=make\ %<
+    au BufRead,BufNewFile *.pkb,*.pks setl ft=plsql " set the file type to plsql
+    au BufRead,BufNewFile *.pkb,*.pks setl errorformat=%f\ %l/%c:%m " parse the output from oscc correcly
+    au BufRead,BufNewFile *.pkb,*.pks setl makeprg=make\ %< " Compile only the current file - We don' want all packages to change on the server just 'cause we update one thing!
 aug end
 ```
-My project makefile: 
+My project Makefile: 
 ```
 SRC=$(wildcard *.pks *.pkb)
 
