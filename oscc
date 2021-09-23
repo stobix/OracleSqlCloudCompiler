@@ -1,0 +1,78 @@
+#!/usr/bin/expect -f
+
+# I'm keeping this snippet from autoexpect in case anyone needs it
+
+# 1) timing - A surprising number of programs (rn, ksh, zsh, telnet,
+# etc.) and devices discard or ignore keystrokes that arrive "too
+# quickly" after prompts.  If you find your new script hanging up at
+# one spot, try adding a short sleep just before the previous send.
+# Setting "force_conservative" to 1 (see below) makes Expect do this
+# automatically - pausing briefly before sending each character.  This
+# pacifies every program I know of.  The -c flag makes the script do
+# this in the first place.  The -C flag allows you to define a
+# character to toggle this mode off and on.
+
+
+set force_conservative 0  ;# set to 1 to force conservative mode even if
+			  ;# script wasn't run conservatively originally
+if {$force_conservative} {
+	set send_slow {1 .1}
+	proc send {ignore arg} {
+		sleep .1
+		exp_send -s -- $arg
+	}
+}
+
+# end snippet
+
+log_user 0
+set user [lindex $argv 0]
+set pass [lindex $argv 1]
+set tns_adm [lindex $argv 2]
+set file [lindex $argv 3]
+
+# set timeout -1
+set env(TNS_ADMIN) "${tns_adm}"
+spawn sqlplus $user
+expect "Enter password: "
+send -- "${pass}\r"
+expect SQL>
+send -- "set heading off\r"
+send -- "set trimspool on\r"
+send -- "set trimout on\r"
+send -- "set echo off\r"
+send -- "set wrap off\r"
+send -- "set pagesize 0\r"
+send -- "set linesize 32767\r"
+send -- "column error format a30000\r"
+expect "SQL>"
+#send "select * from products;\r"
+send "@${file};\r/\r"
+expect { 
+    "Package body" {
+        expect SQL>
+        puts "success"
+        send -- "exit\r"
+    }
+    "SP2-0310" {
+        expect SQL>
+        puts "file not found"
+        send -- "exit\r"
+    }
+    "SP2-0103" {
+        expect SQL>
+        puts "empty file" 
+        send -- "exit\r"
+    }
+    "compilation errors." {
+        expect SQL>
+        send -- "select '${file} '|| line || '/' || position || ':' || regexp_replace(text,chr(10),'>> ') from user_errors;\r"
+        expect -indices SQL>
+        puts [string range $expect_out(buffer) 113 [expr $expect_out(0,start) -2]]
+#        interact
+        send -- "exit\r"
+        exit 1
+    }
+
+}
+expect eof
